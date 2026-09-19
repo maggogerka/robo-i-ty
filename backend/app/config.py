@@ -1,0 +1,29 @@
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    app_name: str = "Робо&Ты API"
+    environment: str = "development"
+    database_url: str = "sqlite:///./robo.db"
+    secret_key: str = "development-only-change-me"
+    access_token_minutes: int = 480
+    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    demo_user_email: str = "demo@robo.local"
+    demo_user_password: str = "Demo-2026!"
+    demo_admin_email: str = "admin@robo.local"
+    demo_admin_password: str = "Admin-2026!"
+    seed_dir: Path = Path(__file__).resolve().parents[2] / "data" / "seed"
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [item.strip() for item in self.cors_origins.split(",") if item.strip()]
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
