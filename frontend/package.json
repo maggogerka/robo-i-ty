@@ -1,0 +1,46 @@
+{
+  "name": "robo-i-ty-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node ./node_modules/vite/bin/vite.js --host 0.0.0.0",
+    "build": "node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.app.json && node ./node_modules/vite/bin/vite.js build",
+    "lint": "node ./node_modules/eslint/bin/eslint.js . --max-warnings=0",
+    "test": "node ./node_modules/vitest/vitest.mjs run",
+    "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.app.json --pretty false"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "5.2.1",
+    "@tanstack/react-query": "5.85.5",
+    "@tanstack/react-table": "8.21.3",
+    "echarts": "6.1.0",
+    "lucide-react": "0.542.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "react-hook-form": "7.62.0",
+    "react-router-dom": "7.18.4",
+    "zod": "4.1.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.34.0",
+    "@testing-library/jest-dom": "6.8.0",
+    "@testing-library/react": "16.3.0",
+    "@types/node": "24.3.0",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "@vitejs/plugin-react": "5.0.2",
+    "autoprefixer": "10.4.21",
+    "eslint": "9.34.0",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "eslint-plugin-react-refresh": "0.4.20",
+    "globals": "16.3.0",
+    "jsdom": "26.1.0",
+    "postcss": "8.5.28",
+    "tailwindcss": "3.4.17",
+    "typescript": "5.9.2",
+    "typescript-eslint": "8.41.0",
+    "vite": "7.3.6",
+    "vitest": "4.1.11"
+  }
+}
