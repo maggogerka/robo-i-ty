@@ -2,7 +2,7 @@
 
 «От параметров объекта до обоснованного решения по роботизации» — веб-платформа для экспресс-предынвестиционной оценки роботизированных решений.
 
-Текущий инкремент реализует самый важный сквозной контур: импорт конкурсных данных, проект объекта, объяснимый подбор и сравнение текущей работы, покупки и RaaS. Статус остальных функций честно зафиксирован в [STATUS.md](STATUS.md).
+Рабочий сквозной контур: конкурсные данные → проект объекта → объяснимый подбор → экономика → 2D-план и симуляция → PDF/CSV. Актуальная готовность и ограничения зафиксированы в [STATUS.md](STATUS.md).
 
 ## Запуск одной командой
 
@@ -15,16 +15,22 @@ docker compose up --build
 - OpenAPI: <http://localhost:8000/docs>
 - healthcheck: <http://localhost:8000/health>
 
-Docker Desktop должен быть запущен. Первый старт создаёт схему PostgreSQL миграцией Alembic и загружает seed.
+Docker Desktop должен быть запущен. Первый старт создаёт схему PostgreSQL миграциями Alembic и загружает seed.
 
-## Демо-аккаунты
+## Демо-сценарий
+
+1. Откройте `/demo` и войдите демо-пользователем.
+2. Проверьте параметры склада.
+3. Откройте объяснимый подбор и экономику.
+4. В 2D-редакторе переместите зоны, сохраните план и запустите симуляцию.
+5. Скачайте PDF и CSV на шаге «Отчёт».
 
 | Роль | Логин | Пароль |
 |---|---|---|
 | пользователь | `demo@robo.local` | `Demo-2026!` |
 | администратор | `admin@robo.local` | `Admin-2026!` |
 
-Это только локальные демонстрационные значения. Для любого внешнего стенда измените все пароли и `SECRET_KEY` в `.env`.
+Это только локальные демонстрационные значения. Для внешнего стенда измените пароли и задайте случайный `SECRET_KEY` длиной не менее 32 символов. Production-конфигурация отклоняет стандартный или короткий ключ.
 
 ## Локальная разработка без Docker
 
@@ -43,21 +49,30 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-При локальном запуске backend использует SQLite; Docker использует PostgreSQL.
+При локальном запуске backend использует SQLite; Docker использует PostgreSQL. PDF гарантированно проверяется в Docker, где установлены Pango и шрифт DejaVu Sans.
 
 ## Проверки
 
 ```powershell
-cd backend
-..\.venv\Scripts\python.exe -m ruff check --no-cache app tests
-..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider
+.\.venv\Scripts\python.exe -m ruff check backend\app backend\tests backend\alembic\versions\9ce12ad2f8b1_add_simulation_schema.py
+.\.venv\Scripts\python.exe -m pytest backend\tests -q
+.\.venv\Scripts\python.exe -m pip_audit -r backend\requirements.txt
 
-cd ..\frontend
+cd frontend
 npm.cmd run lint
 npm.cmd run typecheck
-npm.cmd run test
+npm.cmd test
 npm.cmd run build
+npm.cmd audit
 ```
+
+## Безопасность данных
+
+- `input/`, PDF, пользовательские выгрузки, `.env`, пароли и токены не коммитятся.
+- Чужой проект возвращает 404; роли и владелец проверяются на backend.
+- Неизвестное значение не превращается в ноль или пройденное ограничение.
+- PDF формируется без внешних URL; CSV защищён от formula injection.
+- Перед публичным стендом замените demo-учётные данные, включите `ENVIRONMENT=production`, TLS и общее хранилище rate limit.
 
 ## Обновление seed из `input/`
 
@@ -72,10 +87,11 @@ npm.cmd run build
 
 ## Структура
 
-- `backend/` — FastAPI, модели, миграция, подбор, экономика и тесты;
-- `frontend/` — React/TypeScript, русский интерфейс и тесты;
+- `backend/` — FastAPI, модели, миграции, подбор, экономика, симуляция, отчёты и тесты;
+- `frontend/` — React/TypeScript, React Konva, ECharts и русский интерфейс;
 - `data/seed/` — воспроизводимые нормализованные данные;
 - `scripts/` — импорт конкурсных файлов;
-- `docs/` — источники, архитектура и методики;
+- `docs/` — источники, архитектура, методики и отчёт передачи;
 - `input/` — локальные исходники, исключённые из git.
 
+Полный технический отчёт: [docs/handoff-report-2026-09-21.md](docs/handoff-report-2026-09-21.md). Спецификация локального зрения: [docs/local-vision-model.md](docs/local-vision-model.md).

@@ -5,9 +5,9 @@
 | Компонент | Лицензия |
 |---|---|
 | FastAPI, SQLModel, Pydantic, Alembic, SQLAlchemy, PyJWT | MIT |
-| Uvicorn | BSD-3-Clause |
+| Uvicorn, Jinja2, WeasyPrint | BSD-3-Clause |
 | Psycopg 3 | LGPL-3.0 |
-| React, React Router, TanStack Query/Table, React Hook Form, Zod, Vite, Tailwind CSS | MIT |
+| React, React Router, React Konva, Konva, TanStack Query/Table, React Hook Form, Zod, Vite, Tailwind CSS | MIT |
 | Apache ECharts | Apache-2.0 |
 | Lucide | ISC |
 | PostgreSQL | PostgreSQL License |

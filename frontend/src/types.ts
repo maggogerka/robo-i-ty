@@ -75,6 +75,9 @@ export type Scenario = {
 };
 
 export type EconomicsResult = {
+  model_version: string;
+  fleet_basis: "catalog_assumption" | "latest_simulation" | "user_override";
+  simulation_run_id: string | null;
   required_robots: number;
   horizon_years: number;
   scenarios: Record<"baseline" | "purchase" | "raas", Scenario>;
@@ -87,3 +90,49 @@ export type EconomicsResult = {
   disclaimer: string;
 };
 
+
+export type PlanElementKind = "storage" | "obstacle" | "pickup" | "dropoff" | "charger";
+
+export type PlanElement = {
+  id: string;
+  kind: PlanElementKind;
+  label: string;
+  x_m: number;
+  y_m: number;
+  width_m: number;
+  height_m: number;
+  rotation_deg: number;
+};
+
+export type ProjectPlan = {
+  name: string;
+  width_m: number;
+  height_m: number;
+  revision: number;
+  source_status: "verified" | "source_present" | "assumed";
+  elements: PlanElement[];
+};
+
+export type SimulationResult = {
+  run_id: string;
+  model_version: string;
+  plan_revision: number;
+  robot_count: number;
+  recommended_robots: number;
+  route_distance_m: number;
+  cycle_distance_m: number;
+  cycle_time_seconds: number;
+  throughput_tasks_hour: number;
+  capacity_tasks_hour: number;
+  completed_tasks_day: number;
+  capacity_gap_tasks_day: number;
+  utilization_percent: number;
+  route_points: { x_m: number; y_m: number }[];
+  warnings: string[];
+  assumptions: {
+    key: string;
+    value: number;
+    unit: string;
+    status: "assumed";
+  }[];
+};

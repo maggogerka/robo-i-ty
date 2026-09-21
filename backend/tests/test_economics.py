@@ -32,6 +32,7 @@ def test_three_scenarios_and_transparent_formula():
     assert result["scenarios"]["baseline"]["capex_rub"] == 0
     assert result["scenarios"]["purchase"]["tco_rub"] > 0
     assert "ROI" in result["formula_note"]
+    assert result["model_version"] == "2026.09.2"
 
 
 def test_non_positive_effect_has_no_fake_payback():

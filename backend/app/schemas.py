@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class LoginRequest(BaseModel):
@@ -45,3 +45,46 @@ class CatalogUpdate(BaseModel):
     price_rub: float | None = Field(default=None, ge=0)
     status: str | None = None
     description: str | None = None
+
+
+class StrictModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class PlanElementPayload(StrictModel):
+    id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    kind: Literal["storage", "obstacle", "pickup", "dropoff", "charger"]
+    label: str = Field(min_length=1, max_length=120)
+    x_m: float = Field(ge=0, le=2_000)
+    y_m: float = Field(ge=0, le=2_000)
+    width_m: float = Field(gt=0, le=500)
+    height_m: float = Field(gt=0, le=500)
+    rotation_deg: float = Field(default=0, ge=-360, le=360)
+
+
+class PlanPayload(StrictModel):
+    name: str = Field(default="Основной план", min_length=1, max_length=120)
+    width_m: float = Field(gt=1, le=2_000)
+    height_m: float = Field(gt=1, le=2_000)
+    elements: list[PlanElementPayload] = Field(min_length=2, max_length=250)
+
+    @model_validator(mode="after")
+    def validate_layout(self):
+        ids = [item.id for item in self.elements]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Идентификаторы элементов плана должны быть уникальны")
+        if not any(item.kind == "pickup" for item in self.elements):
+            raise ValueError("На плане нужна хотя бы одна зона забора")
+        if not any(item.kind == "dropoff" for item in self.elements):
+            raise ValueError("На плане нужна хотя бы одна зона доставки")
+        for item in self.elements:
+            if item.x_m + item.width_m > self.width_m or item.y_m + item.height_m > self.height_m:
+                raise ValueError(f"Элемент «{item.label}» выходит за границы плана")
+        return self
+
+
+class SimulationRequest(StrictModel):
+    robot_count: int | None = Field(default=None, ge=1, le=500)
+    robot_speed_m_s: float = Field(default=1.2, gt=0, le=5)
+    handling_time_seconds: float = Field(default=35, ge=0, le=3_600)
+    availability_percent: float = Field(default=92, gt=0, le=100)

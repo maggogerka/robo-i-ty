@@ -4,15 +4,21 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from ..db import get_session
-from ..economics import EconomicInputs, calculate_economics, calculate_sensitivity
+from ..economics import (
+    EconomicInputs,
+    calculate_economics,
+    calculate_sensitivity,
+)
 from ..matching import WEIGHTS, rank_solutions
 from ..models import (
     DeploymentCase,
     MatchingCandidate,
     MatchingRun,
+    Plan,
     Project,
     ProjectParameterValue,
     RobotSolution,
+    SimulationRun,
     User,
 )
 from ..schemas import EconomicsRequest
@@ -110,11 +116,40 @@ def run_economics(
         "horizon_years": int(values.get("horizon_years") or 5),
         "peak_factor": float(values.get("peak_factor") or 1.15),
     }
+    fleet_basis = "catalog_assumption"
+    simulation_run_id = None
+    current_plan = session.get(Plan, project.id)
+    latest_simulation = session.exec(
+        select(SimulationRun)
+        .where(SimulationRun.project_id == project.id)
+        .order_by(SimulationRun.created_at.desc())
+    ).first()
+    simulation_is_current = latest_simulation and (
+        current_plan is None or latest_simulation.plan_revision == current_plan.revision
+    )
+    if simulation_is_current:
+        snapshot = latest_simulation.result_snapshot
+        simulated_count = snapshot.get("robot_count")
+        simulated_capacity = snapshot.get("capacity_tasks_hour")
+        if (
+            isinstance(simulated_count, int | float)
+            and simulated_count > 0
+            and isinstance(simulated_capacity, int | float)
+            and simulated_capacity > 0
+        ):
+            defaults["robot_tasks_per_hour"] = simulated_capacity / simulated_count
+            defaults["robot_utilization"] = 1.0
+            fleet_basis = "latest_simulation"
+            simulation_run_id = latest_simulation.id
+
     allowed = set(EconomicInputs.__dataclass_fields__)
     unknown = set(payload.overrides) - allowed
     if unknown:
         raise HTTPException(status_code=422, detail=f"Неизвестные допущения: {sorted(unknown)}")
     defaults.update(payload.overrides)
+    if {"robot_tasks_per_hour", "robot_utilization"} & set(payload.overrides):
+        fleet_basis = "user_override"
+
     try:
         inputs = EconomicInputs(**defaults)
         result = calculate_economics(inputs)
@@ -130,6 +165,8 @@ def run_economics(
             },
             "sensitivity": calculate_sensitivity(inputs),
             "assumption_status": "assumed",
+            "fleet_basis": fleet_basis,
+            "simulation_run_id": simulation_run_id,
             "disclaimer": (
                 "Предварительная оценка на демонстрационных допущениях; требуется "
                 "инженерное обследование и коммерческое предложение."

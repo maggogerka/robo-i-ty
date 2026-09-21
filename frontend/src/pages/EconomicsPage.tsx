@@ -50,7 +50,7 @@ function EconomicsView({ result }: { result: EconomicsResult }) {
       </div>
       <div className="economics-lower">
         <article className="chart-card"><div><p className="section-kicker">What-if · ±20%</p><h2>Чувствительность окупаемости</h2></div><SensitivityChart data={result.sensitivity} /></article>
-        <aside className="method-card"><Calculator /><h3>Методика</h3><p>{result.formula_note}</p><div><Info size={16} /><span>Требуемое число роботов округляется вверх с учётом пика и загрузки.</span></div><div><AlertTriangle size={16} /><span>{result.disclaimer}</span></div></aside>
+        <aside className="method-card"><Calculator /><h3>Методика · {result.model_version}</h3><p>{result.formula_note}</p><div><Info size={16} /><span>{result.fleet_basis === "latest_simulation" ? "Парк уточнён по последней актуальной 2D-симуляции и пиковому резерву." : "Парк рассчитан по каталожному допущению; запустите 2D-симуляцию для уточнения."}</span></div><div><AlertTriangle size={16} /><span>{result.disclaimer}</span></div></aside>
       </div>
     </>
   );

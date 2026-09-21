@@ -135,7 +135,7 @@ class EconomicScenario(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)
     project_id: str = Field(foreign_key="project.id", index=True)
     scenario_type: str
-    model_version: str = "2026.09.1"
+    model_version: str = "2026.09.2"
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -155,6 +155,52 @@ class EconomicResult(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)
     scenario_id: str = Field(foreign_key="economicscenario.id", index=True)
     metrics: dict[str, Any] = Field(sa_column=Column(JSON))
+
+
+class Plan(SQLModel, table=True):
+    project_id: str = Field(foreign_key="project.id", primary_key=True)
+    name: str = "Основной план"
+    width_m: float
+    height_m: float
+    revision: int = 1
+    source_status: str = "assumed"
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class PlanElement(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("plan_project_id", "element_key"),)
+
+    id: str = Field(default_factory=new_id, primary_key=True)
+    plan_project_id: str = Field(foreign_key="plan.project_id", index=True)
+    element_key: str = Field(max_length=64)
+    kind: str = Field(index=True, max_length=32)
+    label: str = Field(max_length=120)
+    x_m: float
+    y_m: float
+    width_m: float
+    height_m: float
+    rotation_deg: float = 0
+    properties: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class SimulationRun(SQLModel, table=True):
+    id: str = Field(default_factory=new_id, primary_key=True)
+    project_id: str = Field(foreign_key="project.id", index=True)
+    plan_revision: int
+    model_version: str = "2026.09.1"
+    input_snapshot: dict[str, Any] = Field(sa_column=Column(JSON))
+    result_snapshot: dict[str, Any] = Field(sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class SimulationMetric(SQLModel, table=True):
+    id: str = Field(default_factory=new_id, primary_key=True)
+    simulation_run_id: str = Field(foreign_key="simulationrun.id", index=True)
+    key: str = Field(max_length=80)
+    value: float
+    unit: str = Field(max_length=32)
+    status: str = "assumed"
 
 
 class AuditEvent(SQLModel, table=True):

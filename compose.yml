@@ -23,7 +23,7 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-robo}:${POSTGRES_PASSWORD:-robo-local-only}@db:5432/${POSTGRES_DB:-robo}
-      SECRET_KEY: ${SECRET_KEY:-replace-before-production}
+      SECRET_KEY: ${SECRET_KEY:-replace-before-production-at-least-32-characters}
       DEMO_USER_EMAIL: ${DEMO_USER_EMAIL:-demo@robo.local}
       DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-Demo-2026!}
       DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-admin@robo.local}
