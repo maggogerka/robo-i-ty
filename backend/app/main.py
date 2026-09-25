@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session
 
-from .api import analysis, auth, catalog, projects, reports, simulation
+from .api import analysis, auth, catalog, plan_assets, projects, reports, simulation
 from .config import get_settings
 from .db import create_db_and_tables, engine
 from .seed import seed_database
@@ -32,6 +32,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(plan_assets.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(catalog.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")

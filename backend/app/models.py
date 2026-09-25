@@ -183,6 +183,45 @@ class PlanElement(SQLModel, table=True):
     rotation_deg: float = 0
     properties: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
+class PlanAsset(SQLModel, table=True):
+    id: str = Field(default_factory=new_id, primary_key=True)
+    project_id: str = Field(foreign_key="project.id", index=True)
+    original_name: str = Field(max_length=255)
+    media_type: str = Field(max_length=80)
+    byte_size: int
+    sha256: str = Field(index=True, max_length=64)
+    storage_path: str = Field(max_length=500)
+    uploaded_by: str = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class ObjectPlan(SQLModel, table=True):
+    project_id: str = Field(foreign_key="project.id", primary_key=True)
+    asset_id: str | None = Field(default=None, foreign_key="planasset.id", index=True)
+    current_revision_id: str | None = Field(default=None, index=True)
+    scale_m_per_px: float | None = None
+    scale_status: str = Field(default="unknown", max_length=24)
+    review_status: str = Field(default="draft", max_length=24)
+    provider_key: str = Field(default="manual", max_length=64)
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class PlanRevision(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("project_id", "revision_number"),)
+
+    id: str = Field(default_factory=new_id, primary_key=True)
+    project_id: str = Field(foreign_key="project.id", index=True)
+    asset_id: str | None = Field(default=None, foreign_key="planasset.id")
+    revision_number: int
+    plan_data: dict[str, Any] = Field(sa_column=Column(JSON))
+    source: str = Field(max_length=24)
+    review_status: str = Field(default="draft", max_length=24)
+    provider_key: str = Field(default="manual", max_length=64)
+    created_by: str = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=now_utc)
+
+
 
 class SimulationRun(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)

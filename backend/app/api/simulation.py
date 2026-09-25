@@ -4,13 +4,17 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from ..db import get_session
 from ..models import (
     AuditEvent,
+    ObjectPlan,
     Plan,
+    PlanAsset,
     PlanElement,
+    PlanRevision,
     Project,
     ProjectParameterValue,
     SimulationMetric,
@@ -119,12 +123,18 @@ def _plan_payload(plan: Plan, session: Session) -> dict[str, Any]:
             .order_by(PlanElement.kind, PlanElement.label)
         )
     )
+    metadata = session.get(ObjectPlan, plan.project_id)
     return {
         "name": plan.name,
         "width_m": plan.width_m,
         "height_m": plan.height_m,
         "revision": plan.revision,
         "source_status": plan.source_status,
+        "asset_id": metadata.asset_id if metadata else None,
+        "scale_m_per_px": metadata.scale_m_per_px if metadata else None,
+        "scale_status": metadata.scale_status if metadata else "confirmed",
+        "review_status": metadata.review_status if metadata else "draft",
+        "provider_key": metadata.provider_key if metadata else "manual",
         "elements": [
             {
                 "id": item.element_key,
@@ -135,6 +145,10 @@ def _plan_payload(plan: Plan, session: Session) -> dict[str, Any]:
                 "width_m": item.width_m,
                 "height_m": item.height_m,
                 "rotation_deg": item.rotation_deg,
+                "confidence": item.properties.get("confidence", 1),
+                "source": item.properties.get("source", "manual"),
+                "review_status": item.properties.get("review_status", "reviewed"),
+                "source_region": item.properties.get("source_region"),
             }
             for item in elements
         ],
@@ -176,19 +190,28 @@ def save_plan(
     session: Session = Depends(get_session),
 ):
     _project(project_id, user, session)
+    if payload.asset_id:
+        asset = session.get(PlanAsset, payload.asset_id)
+        if asset is None or asset.project_id != project_id:
+            raise HTTPException(status_code=422, detail="???? ????? ?? ??????????? ???????")
     plan = session.get(Plan, project_id)
     now = datetime.now(UTC)
+    sources = {item.source for item in payload.elements}
+    revision_source = "model" if "model" in sources else "demo" if sources == {"demo"} else "manual"
+    source_status = "source_present" if revision_source == "model" else "assumed"
     if plan is None:
         plan = Plan(
             project_id=project_id,
             name=payload.name,
             width_m=payload.width_m,
             height_m=payload.height_m,
+            source_status=source_status,
         )
     else:
         plan.name = payload.name
         plan.width_m = payload.width_m
         plan.height_m = payload.height_m
+        plan.source_status = source_status
         plan.revision += 1
         plan.updated_at = now
     session.add(plan)
@@ -207,15 +230,56 @@ def save_plan(
                 width_m=item.width_m,
                 height_m=item.height_m,
                 rotation_deg=item.rotation_deg,
+                properties={
+                    "confidence": item.confidence,
+                    "source": item.source,
+                    "review_status": item.review_status,
+                    "source_region": item.source_region,
+                },
             )
         )
+    session.flush()
+    max_revision = session.exec(
+        select(func.max(PlanRevision.revision_number)).where(PlanRevision.project_id == project_id)
+    ).one()
+    history_revision = PlanRevision(
+        project_id=project_id,
+        asset_id=payload.asset_id,
+        revision_number=int(max_revision or 0) + 1,
+        plan_data={
+            **payload.model_dump(),
+            "revision": plan.revision,
+            "source_status": plan.source_status,
+        },
+        source=revision_source,
+        review_status=payload.review_status,
+        provider_key=payload.provider_key,
+        created_by=user.id,
+    )
+    session.add(history_revision)
+    session.flush()
+    object_plan = session.get(ObjectPlan, project_id)
+    if object_plan is None:
+        object_plan = ObjectPlan(project_id=project_id)
+    object_plan.asset_id = payload.asset_id
+    object_plan.current_revision_id = history_revision.id
+    object_plan.scale_m_per_px = payload.scale_m_per_px
+    object_plan.scale_status = payload.scale_status
+    object_plan.review_status = payload.review_status
+    object_plan.provider_key = payload.provider_key
+    object_plan.updated_at = now
+    session.add(object_plan)
     session.add(
         AuditEvent(
             actor_id=user.id,
             action="project.plan.save",
             entity_type="Plan",
             entity_id=project_id,
-            details={"revision": plan.revision, "element_count": len(payload.elements)},
+            details={
+                "revision": plan.revision,
+                "history_revision": history_revision.revision_number,
+                "element_count": len(payload.elements),
+            },
         )
     )
     session.commit()
@@ -233,12 +297,18 @@ def run_simulation(
     _project(project_id, user, session)
     plan_payload, revision = _saved_or_default(project_id, session)
     elements = plan_payload["elements"]
+    metadata = session.get(ObjectPlan, project_id)
+    if metadata and metadata.asset_id and metadata.scale_status != "confirmed":
+        raise HTTPException(
+            status_code=422,
+            detail="??????????? ??????? ???????????? ????? ????? ??????????",
+        )
     pickup = next(item for item in elements if item["kind"] == "pickup")
     dropoff = next(item for item in elements if item["kind"] == "dropoff")
     obstacles = [
         Rect(item["x_m"], item["y_m"], item["width_m"], item["height_m"])
         for item in elements
-        if item["kind"] in {"storage", "obstacle"}
+        if item["kind"] in {"wall", "storage", "obstacle", "restricted_zone"}
     ]
     route, route_warnings = build_route(_center(pickup), _center(dropoff), obstacles)
     values = {

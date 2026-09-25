@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     demo_admin_password: str = "Admin-2026!"
     seed_dir: Path = Path(__file__).resolve().parents[2] / "data" / "seed"
 
+    plan_storage_dir: Path = Path(__file__).resolve().parents[2] / "storage" / "plan-assets"
+    max_plan_asset_bytes: int = 16 * 1024 * 1024
+    yytsi_provider_url: str | None = None
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @model_validator(mode="after")

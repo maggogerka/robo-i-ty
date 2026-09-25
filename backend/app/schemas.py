@@ -53,7 +53,10 @@ class StrictModel(BaseModel):
 
 class PlanElementPayload(StrictModel):
     id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
-    kind: Literal["storage", "obstacle", "pickup", "dropoff", "charger"]
+    kind: Literal[
+        "wall", "door", "storage", "obstacle", "work_zone", "restricted_zone",
+        "pickup", "dropoff", "charger",
+    ]
     label: str = Field(min_length=1, max_length=120)
     x_m: float = Field(ge=0, le=2_000)
     y_m: float = Field(ge=0, le=2_000)
@@ -61,6 +64,10 @@ class PlanElementPayload(StrictModel):
     height_m: float = Field(gt=0, le=500)
     rotation_deg: float = Field(default=0, ge=-360, le=360)
 
+    confidence: float = Field(default=1, ge=0, le=1)
+    source: Literal["model", "manual", "demo"] = "manual"
+    review_status: Literal["needs_review", "reviewed", "confirmed"] = "reviewed"
+    source_region: dict[str, Any] | None = None
 
 class PlanPayload(StrictModel):
     name: str = Field(default="Основной план", min_length=1, max_length=120)
@@ -68,6 +75,11 @@ class PlanPayload(StrictModel):
     height_m: float = Field(gt=1, le=2_000)
     elements: list[PlanElementPayload] = Field(min_length=2, max_length=250)
 
+    asset_id: str | None = None
+    scale_m_per_px: float | None = Field(default=None, gt=0, le=100)
+    scale_status: Literal["unknown", "confirmed"] = "confirmed"
+    review_status: Literal["draft", "reviewed", "confirmed"] = "draft"
+    provider_key: str = Field(default="manual", min_length=1, max_length=64)
     @model_validator(mode="after")
     def validate_layout(self):
         ids = [item.id for item in self.elements]
@@ -88,3 +100,5 @@ class SimulationRequest(StrictModel):
     robot_speed_m_s: float = Field(default=1.2, gt=0, le=5)
     handling_time_seconds: float = Field(default=35, ge=0, le=3_600)
     availability_percent: float = Field(default=92, gt=0, le=100)
+    robot_radius_m: float = Field(default=0.45, gt=0, le=5)
+    safety_margin_m: float = Field(default=0.15, ge=0, le=5)

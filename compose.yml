@@ -29,6 +29,8 @@ services:
       DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-admin@robo.local}
       DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-Admin-2026!}
       CORS_ORIGINS: http://localhost:3000
+    volumes:
+      - plan-assets:/app/storage/plan-assets
     depends_on:
       db:
         condition: service_healthy
@@ -51,3 +53,4 @@ services:
 
 volumes:
   postgres-data:
+  plan-assets:
