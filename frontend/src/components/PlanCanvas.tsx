@@ -3,8 +3,12 @@ import { Circle, Group, Layer, Line, Rect, Stage, Text } from "react-konva";
 import type { PlanElement, PlanElementKind, ProjectPlan, SimulationResult } from "../types";
 
 const palette: Record<PlanElementKind, { fill: string; stroke: string }> = {
+  wall: { fill: "#76858c", stroke: "#34454d" },
+  door: { fill: "#c4e0da", stroke: "#16705a" },
   storage: { fill: "#d9e5e8", stroke: "#6e8792" },
   obstacle: { fill: "#f4d9d1", stroke: "#bd624d" },
+  work_zone: { fill: "#dcefdc", stroke: "#4d8750" },
+  restricted_zone: { fill: "#f8d4d4", stroke: "#b73d3d" },
   pickup: { fill: "#d9f1e6", stroke: "#198461" },
   dropoff: { fill: "#d9eaf5", stroke: "#24739a" },
   charger: { fill: "#fff0c7", stroke: "#af7917" },

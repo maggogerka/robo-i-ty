@@ -6,6 +6,7 @@ import { DemoPage } from "./pages/DemoPage";
 import { HomePage } from "./pages/HomePage";
 import { MatchingPage } from "./pages/MatchingPage";
 import { PlannedPage } from "./pages/PlannedPage";
+import { PlanPage } from "./pages/PlanPage";
 import { ProjectInputPage } from "./pages/ProjectInputPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { ReportPage } from "./pages/ReportPage";
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="catalog" element={<CatalogPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="projects/:id/input" element={<ProjectInputPage />} />
+        <Route path="projects/:id/plan" element={<PlanPage />} />
         <Route path="projects/:id/matching" element={<MatchingPage />} />
         <Route path="projects/:id/economics" element={<EconomicsPage />} />
         <Route path="projects/:id/simulation" element={<SimulationPage />} />

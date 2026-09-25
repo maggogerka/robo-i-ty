@@ -30,8 +30,12 @@ import type {
 } from "../types";
 
 const labels: Record<PlanElementKind, string> = {
+  wall: "Стена",
+  door: "Дверь",
   storage: "Стеллаж",
   obstacle: "Препятствие",
+  work_zone: "Рабочая зона",
+  restricted_zone: "Запретная зона",
   pickup: "Забор",
   dropoff: "Доставка",
   charger: "Зарядка",
@@ -44,6 +48,11 @@ function planForApi(plan: ProjectPlan) {
     name: plan.name,
     width_m: plan.width_m,
     height_m: plan.height_m,
+    asset_id: plan.asset_id,
+    scale_m_per_px: plan.scale_m_per_px,
+    scale_status: plan.scale_status,
+    review_status: plan.review_status,
+    provider_key: plan.provider_key,
     elements: plan.elements,
   };
 }
@@ -145,6 +154,10 @@ export function SimulationPage() {
       width_m: width,
       height_m: height,
       rotation_deg: 0,
+      confidence: 1,
+      source: "manual",
+      review_status: "reviewed",
+      source_region: null,
     };
     setPlan({ ...plan, elements: [...plan.elements, element] });
     setSelectedId(element.id);

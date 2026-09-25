@@ -91,7 +91,16 @@ export type EconomicsResult = {
 };
 
 
-export type PlanElementKind = "storage" | "obstacle" | "pickup" | "dropoff" | "charger";
+export type PlanElementKind =
+  | "wall"
+  | "door"
+  | "storage"
+  | "obstacle"
+  | "work_zone"
+  | "restricted_zone"
+  | "pickup"
+  | "dropoff"
+  | "charger";
 
 export type PlanElement = {
   id: string;
@@ -102,6 +111,10 @@ export type PlanElement = {
   width_m: number;
   height_m: number;
   rotation_deg: number;
+  confidence: number;
+  source: "model" | "manual" | "demo";
+  review_status: "needs_review" | "reviewed" | "confirmed";
+  source_region: { page?: number; bbox_px?: number[]; method?: string } | null;
 };
 
 export type ProjectPlan = {
@@ -110,7 +123,54 @@ export type ProjectPlan = {
   height_m: number;
   revision: number;
   source_status: "verified" | "source_present" | "assumed";
+  asset_id: string | null;
+  scale_m_per_px: number | null;
+  scale_status: "unknown" | "confirmed";
+  review_status: "draft" | "reviewed" | "confirmed";
+  provider_key: string;
   elements: PlanElement[];
+};
+
+export type PlanAsset = {
+  id: string;
+  project_id: string;
+  original_name: string;
+  media_type: string;
+  byte_size: number;
+  sha256: string;
+  created_at: string;
+  content_url: string;
+};
+
+export type RecognitionProvider = {
+  key: string;
+  display_name: string;
+  available: boolean;
+  uses_model: boolean;
+  formats: string[];
+  note: string;
+  license?: string;
+  weights?: string;
+};
+
+export type RecognitionResult = {
+  provider: { key: string; display_name: string; uses_model: boolean };
+  plan: Omit<ProjectPlan, "revision" | "source_status">;
+  warnings: string[];
+  unresolved: string[];
+  model_versions: Record<string, string>;
+  revision: { id: string; number: number; review_status: string };
+};
+
+export type PlanRevision = {
+  id: string;
+  revision_number: number;
+  asset_id: string | null;
+  source: "model" | "manual" | "demo";
+  review_status: string;
+  provider_key: string;
+  created_at: string;
+  plan: ProjectPlan;
 };
 
 export type SimulationResult = {
