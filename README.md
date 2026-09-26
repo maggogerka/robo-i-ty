@@ -94,4 +94,19 @@ npm.cmd audit
 - `docs/` — источники, архитектура, методики и отчёт передачи;
 - `input/` — локальные исходники, исключённые из git.
 
-Полный технический отчёт: [docs/handoff-report-2026-09-21.md](docs/handoff-report-2026-09-21.md). Спецификация локального зрения: [docs/local-vision-model.md](docs/local-vision-model.md).
+Актуальный технический отчёт: [docs/implementation-report-2026-09-26.md](docs/implementation-report-2026-09-26.md). Спецификация локального зрения: [docs/local-vision-model.md](docs/local-vision-model.md).
+
+## План объекта и локальное распознавание (26.09.2026)
+
+Маршрут проекта теперь состоит из шести шагов: параметры → план объекта → подбор → экономика → 2D-симуляция → отчёт. На шаге плана можно безопасно загрузить PDF/PNG/JPG/WebP/SVG, применить demo-шаблон или опциональный локальный Yytsi provider, откалибровать масштаб двумя точками, исправить объекты и сохранить ревизию.
+
+Demo provider — это не нейросеть. Yytsi отключён по умолчанию; для него нужен отдельный локальный HTTP-сервис и переменная `YYTSI_PROVIDER_URL=http://127.0.0.1:<port>`. Веса моделей и пользовательские планы не входят в репозиторий.
+
+Каталог нормализован в 187 семейств и 190 конфигураций. Пересборка только каталога без XLSX:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\build_seed.py --catalog-only
+.\.venv\Scripts\python.exe scripts\audit_catalog.py
+```
+
+Актуальный отчёт: [docs/implementation-report-2026-09-26.md](docs/implementation-report-2026-09-26.md).
