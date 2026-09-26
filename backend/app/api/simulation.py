@@ -28,7 +28,7 @@ from ..simulation import (
     Point,
     Rect,
     SimulationInputs,
-    build_route,
+    build_astar_route,
     calculate_simulation,
 )
 
@@ -171,6 +171,32 @@ def _center(item: dict[str, Any]) -> Point:
     )
 
 
+def _safe_route(
+    elements: list[dict[str, Any]],
+    *,
+    width_m: float,
+    height_m: float,
+    clearance_m: float,
+) -> tuple[list[Point], list[str]]:
+    pickup = next((item for item in elements if item["kind"] == "pickup"), None)
+    dropoff = next((item for item in elements if item["kind"] == "dropoff"), None)
+    if pickup is None or dropoff is None:
+        return [], ["Для маршрута нужны точки забора и доставки."]
+    obstacles = [
+        Rect(item["x_m"], item["y_m"], item["width_m"], item["height_m"])
+        for item in elements
+        if item["kind"] in {"wall", "storage", "obstacle", "restricted_zone"}
+    ]
+    return build_astar_route(
+        _center(pickup),
+        _center(dropoff),
+        obstacles,
+        width_m=width_m,
+        height_m=height_m,
+        clearance_m=clearance_m,
+    )
+
+
 @router.get("/{project_id}/plan")
 def get_plan(
     project_id: str,
@@ -193,7 +219,21 @@ def save_plan(
     if payload.asset_id:
         asset = session.get(PlanAsset, payload.asset_id)
         if asset is None or asset.project_id != project_id:
-            raise HTTPException(status_code=422, detail="???? ????? ?? ??????????? ???????")
+            raise HTTPException(status_code=422, detail="Файл плана не принадлежит проекту")
+    if payload.review_status == "confirmed":
+        if payload.asset_id and payload.scale_status != "confirmed":
+            raise HTTPException(
+                status_code=422,
+                detail="Нельзя подтвердить план без подтверждённого масштаба",
+            )
+        route, warnings = _safe_route(
+            [item.model_dump() for item in payload.elements],
+            width_m=payload.width_m,
+            height_m=payload.height_m,
+            clearance_m=0.6,
+        )
+        if not route:
+            raise HTTPException(status_code=422, detail=warnings[-1])
     plan = session.get(Plan, project_id)
     now = datetime.now(UTC)
     sources = {item.source for item in payload.elements}
@@ -301,16 +341,16 @@ def run_simulation(
     if metadata and metadata.asset_id and metadata.scale_status != "confirmed":
         raise HTTPException(
             status_code=422,
-            detail="??????????? ??????? ???????????? ????? ????? ??????????",
+            detail="Подтвердите масштаб загруженного плана перед симуляцией",
         )
-    pickup = next(item for item in elements if item["kind"] == "pickup")
-    dropoff = next(item for item in elements if item["kind"] == "dropoff")
-    obstacles = [
-        Rect(item["x_m"], item["y_m"], item["width_m"], item["height_m"])
-        for item in elements
-        if item["kind"] in {"wall", "storage", "obstacle", "restricted_zone"}
-    ]
-    route, route_warnings = build_route(_center(pickup), _center(dropoff), obstacles)
+    route, route_warnings = _safe_route(
+        elements,
+        width_m=plan_payload["width_m"],
+        height_m=plan_payload["height_m"],
+        clearance_m=payload.robot_radius_m + payload.safety_margin_m,
+    )
+    if not route:
+        raise HTTPException(status_code=422, detail=route_warnings[-1])
     values = {
         item.definition_code: item.value
         for item in session.exec(
@@ -363,6 +403,18 @@ def run_simulation(
                 "key": "handling_time_seconds",
                 "value": payload.handling_time_seconds,
                 "unit": "с/операцию",
+                "status": "assumed",
+            },
+            {
+                "key": "robot_radius_m",
+                "value": payload.robot_radius_m,
+                "unit": "м",
+                "status": "assumed",
+            },
+            {
+                "key": "safety_margin_m",
+                "value": payload.safety_margin_m,
+                "unit": "м",
                 "status": "assumed",
             },
             {

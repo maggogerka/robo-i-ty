@@ -9,12 +9,14 @@ from ..economics import (
     calculate_economics,
     calculate_sensitivity,
 )
-from ..matching import WEIGHTS, rank_solutions
+from ..matching import MATCHING_MODEL_VERSION, WEIGHTS, rank_solutions
 from ..models import (
     DeploymentCase,
     MatchingCandidate,
     MatchingRun,
+    ObjectPlan,
     Plan,
+    PlanElement,
     Project,
     ProjectParameterValue,
     RobotSolution,
@@ -43,10 +45,44 @@ def _parameters(project_id: str, session: Session) -> dict:
     }
 
 
+def _plan_context(project_id: str, session: Session) -> dict | None:
+    plan = session.get(Plan, project_id)
+    if plan is None:
+        return None
+    metadata = session.get(ObjectPlan, project_id)
+    elements = list(
+        session.exec(select(PlanElement).where(PlanElement.plan_project_id == project_id))
+    )
+    return {
+        "width_m": plan.width_m,
+        "height_m": plan.height_m,
+        "revision": plan.revision,
+        "asset_id": metadata.asset_id if metadata else None,
+        "scale_status": metadata.scale_status if metadata else "confirmed",
+        "review_status": metadata.review_status if metadata else "draft",
+        "elements": [
+            {
+                "kind": item.kind,
+                "x_m": item.x_m,
+                "y_m": item.y_m,
+                "width_m": item.width_m,
+                "height_m": item.height_m,
+            }
+            for item in elements
+        ],
+    }
+
+
 def _matching(project: Project, parameters: dict, session: Session):
     solutions = list(session.exec(select(RobotSolution)))
     case_ids = {item.solution_id for item in session.exec(select(DeploymentCase))}
-    return rank_solutions(solutions, project.object_type_code, parameters, case_ids)
+    return rank_solutions(
+        solutions,
+        project.object_type_code,
+        parameters,
+        case_ids,
+        _plan_context(project.id, session),
+    )
 
 
 @router.post("/{project_id}/matching")
@@ -58,7 +94,15 @@ def run_matching(
     project = _project(project_id, user, session)
     parameters = _parameters(project.id, session)
     eligible, excluded = _matching(project, parameters, session)
-    run = MatchingRun(project_id=project.id, input_snapshot=parameters)
+    run = MatchingRun(
+        project_id=project.id,
+        model_version=MATCHING_MODEL_VERSION,
+        input_snapshot={
+            "parameters": parameters,
+            "plan": _plan_context(project.id, session),
+            "weights": WEIGHTS,
+        },
+    )
     session.add(run)
     session.flush()
     for item in eligible[:20]:

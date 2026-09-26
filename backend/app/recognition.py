@@ -33,13 +33,13 @@ class PlanRecognitionProvider(ABC):
 
 def _demo_elements() -> list[dict[str, Any]]:
     raw = [
-        ("pickup-1", "pickup", "???????", 3, 14, 8, 8),
-        ("storage-1", "storage", "??????? A", 18, 3, 8, 13),
-        ("storage-2", "storage", "??????? B", 31, 3, 8, 13),
-        ("storage-3", "storage", "??????? C", 18, 21, 8, 12),
-        ("storage-4", "storage", "??????? D", 31, 21, 8, 12),
-        ("dropoff-1", "dropoff", "????????", 49, 14, 8, 8),
-        ("charger-1", "charger", "???????", 48, 4, 7, 5),
+        ("pickup-1", "pickup", "Приёмка", 3, 14, 8, 8),
+        ("storage-1", "storage", "Стеллаж A", 18, 3, 8, 13),
+        ("storage-2", "storage", "Стеллаж B", 31, 3, 8, 13),
+        ("storage-3", "storage", "Стеллаж C", 18, 21, 8, 12),
+        ("storage-4", "storage", "Стеллаж D", 31, 21, 8, 12),
+        ("dropoff-1", "dropoff", "Отгрузка", 49, 14, 8, 8),
+        ("charger-1", "charger", "Зарядка", 48, 4, 7, 5),
     ]
     return [
         {
@@ -62,7 +62,7 @@ def _demo_elements() -> list[dict[str, Any]]:
 
 class DemoPlanRecognitionProvider(PlanRecognitionProvider):
     key = "demo"
-    display_name = "???????????????? ??????"
+    display_name = "Демонстрационный шаблон"
     uses_model = False
 
     def recognize(self, asset: PlanAsset, source_path: Path) -> dict[str, Any]:
@@ -73,7 +73,7 @@ class DemoPlanRecognitionProvider(PlanRecognitionProvider):
                 "uses_model": False,
             },
             "plan": {
-                "name": f"????????: {asset.original_name}",
+                "name": f"Черновик: {asset.original_name}",
                 "width_m": 60,
                 "height_m": 36,
                 "asset_id": asset.id,
@@ -84,8 +84,8 @@ class DemoPlanRecognitionProvider(PlanRecognitionProvider):
                 "elements": _demo_elements(),
             },
             "warnings": [
-                "??????????? ???????????????? ??????, ? ?? ?????????.",
-                "????????? ?? ????????? ?? ???????????? ?????: ????????? ??? ???????? ? ???????.",
+                "Применён демонстрационный шаблон, а не нейросеть.",
+                "Элементы не привязаны к исходному файлу: проверьте их вручную и задайте масштаб.",
             ],
             "unresolved": ["scale", "source_alignment"],
             "model_versions": {},
@@ -100,13 +100,13 @@ class DemoPlanRecognitionProvider(PlanRecognitionProvider):
             "formats": sorted(
                 ["application/pdf", "image/png", "image/jpeg", "image/webp", "image/svg+xml"]
             ),
-            "note": "?????? ???????? ??? GPU; ?????????? ??????? ?????????????? ?????.",
+            "note": "Работает локально без GPU; результат всегда требует ручной проверки.",
         }
 
 
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        raise RecognitionUnavailable("????????? ????????? ????????? ????????????? ??????")
+        raise RecognitionUnavailable("Перенаправления внешнего провайдера запрещены")
 
 
 class YytsiPlanRecognitionProvider(PlanRecognitionProvider):
@@ -120,20 +120,20 @@ class YytsiPlanRecognitionProvider(PlanRecognitionProvider):
             parsed = urlparse(self.base_url)
             if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
                 raise RecognitionUnavailable(
-                    "YYTSI_PROVIDER_URL ?????? ????????? ?????? ?? ????????? HTTP-??????"
+                    "YYTSI_PROVIDER_URL должен указывать только на локальный HTTP-сервер"
                 )
         self.opener = build_opener(_NoRedirect)
 
     def status(self) -> dict[str, Any]:
         available = False
-        detail = "URL ?????????? inference-??????? ?? ?????"
+        detail = "URL локального inference-сервера не задан"
         if self.base_url:
             try:
                 response = self.opener.open(f"{self.base_url}/healthz", timeout=2)
                 available = response.status == 200
-                detail = "????????? ?????? ????????" if available else f"HTTP {response.status}"
+                detail = "Локальный сервис доступен" if available else f"HTTP {response.status}"
             except (HTTPError, URLError, OSError, RecognitionUnavailable) as exc:
-                detail = f"????????? ?????? ??????????: {type(exc).__name__}"
+                detail = f"Локальный сервис недоступен: {type(exc).__name__}"
         return {
             "key": self.key,
             "display_name": self.display_name,
@@ -142,14 +142,14 @@ class YytsiPlanRecognitionProvider(PlanRecognitionProvider):
             "formats": ["image/svg+xml"],
             "note": detail,
             "license": "MIT",
-            "weights": "best.safetensors, ????? 98 ??; ?? ?????? ? ???????????",
+            "weights": "best.safetensors, около 98 МБ; не входит в репозиторий",
         }
 
     def recognize(self, asset: PlanAsset, source_path: Path) -> dict[str, Any]:
         if not self.base_url:
-            raise RecognitionUnavailable("????????? Yytsi-????????? ?? ????????")
+            raise RecognitionUnavailable("Локальный Yytsi-провайдер не настроен")
         if asset.media_type != "image/svg+xml":
-            raise RecognitionUnavailable("Yytsi-????????? ???? ?????? ????????? ?????? SVG")
+            raise RecognitionUnavailable("Yytsi-провайдер этой версии принимает только SVG")
         boundary = f"----robo-{uuid4().hex}"
         payload = source_path.read_bytes()
         body = (
@@ -171,15 +171,15 @@ class YytsiPlanRecognitionProvider(PlanRecognitionProvider):
             with self.opener.open(request, timeout=90) as response:
                 raw = response.read(10 * 1024 * 1024 + 1)
         except (HTTPError, URLError, OSError) as exc:
-            raise RecognitionUnavailable("?????? ?????????? Yytsi-?????????") from exc
+            raise RecognitionUnavailable("Ошибка подключения к Yytsi-провайдеру") from exc
         if len(raw) > 10 * 1024 * 1024:
-            raise RecognitionUnavailable("????? Yytsi-?????????? ????????? ?????")
+            raise RecognitionUnavailable("Ответ Yytsi-провайдера превышает лимит")
         try:
             result = json.loads(raw)
             width_px, height_px = result["canvas_size"]
             polygons = result["polygons"]
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise RecognitionUnavailable("Yytsi-????????? ?????? ??????????? JSON") from exc
+            raise RecognitionUnavailable("Yytsi-провайдер вернул некорректный JSON") from exc
         width_m = 60.0
         height_m = max(2.0, round(width_m * float(height_px) / float(width_px), 3))
         scale_x = width_m / float(width_px)
@@ -199,7 +199,7 @@ class YytsiPlanRecognitionProvider(PlanRecognitionProvider):
                     {
                         "id": f"{target_kind}-{index}",
                         "kind": target_kind,
-                        "label": "?????" if target_kind == "wall" else "?????",
+                        "label": "Стена" if target_kind == "wall" else "Дверь",
                         "x_m": round(x0 * scale_x, 3),
                         "y_m": round(y0 * scale_y, 3),
                         "width_m": max(0.05, round((x1 - x0) * scale_x, 3)),
@@ -222,7 +222,7 @@ class YytsiPlanRecognitionProvider(PlanRecognitionProvider):
                 "uses_model": True,
             },
             "plan": {
-                "name": f"??????????: {asset.original_name}",
+                "name": f"Распознано: {asset.original_name}",
                 "width_m": width_m,
                 "height_m": height_m,
                 "asset_id": asset.id,
@@ -233,10 +233,10 @@ class YytsiPlanRecognitionProvider(PlanRecognitionProvider):
                 "elements": elements[:250],
             },
             "warnings": [
-                "??????? ?? ???????????: ??????????? ??????? ???????? ???????? ?????????????.",
+                "Масштаб не подтверждён: геометрия требует ручной калибровки.",
                 (
-                    "?????? ?????????? ?????? floor/wall/door/window; "
-                    "????????????? ????? ??????????? ???????."
+                    "Модель распознаёт классы floor/wall/door/window; "
+                    "промышленные объекты необходимо задать вручную."
                 ),
             ],
             "unresolved": ["scale", "pickup", "dropoff", "industrial_objects"],
@@ -249,7 +249,7 @@ def get_provider(key: str, settings: Settings) -> PlanRecognitionProvider:
         return DemoPlanRecognitionProvider()
     if key == "yytsi_floorplan":
         return YytsiPlanRecognitionProvider(settings.yytsi_provider_url)
-    raise RecognitionUnavailable("??????????? ????????? ?????????????")
+    raise RecognitionUnavailable("Неизвестный провайдер распознавания")
 
 
 def provider_statuses(settings: Settings) -> list[dict[str, Any]]:

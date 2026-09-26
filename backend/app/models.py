@@ -75,8 +75,19 @@ class ProjectParameterValue(SQLModel, table=True):
     changed_at: datetime | None = None
 
 
+class RobotFamily(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    name: str = Field(index=True)
+    manufacturer: str = Field(index=True)
+    source_status: str = "source_present"
+    source_name: str
+
+
 class RobotSolution(SQLModel, table=True):
     id: str = Field(primary_key=True)
+    family_id: str | None = Field(default=None, foreign_key="robotfamily.id", index=True)
+    source_product_id: str | None = Field(default=None, index=True)
+    configuration_key: str | None = Field(default=None, index=True)
     name: str = Field(index=True)
     manufacturer: str = Field(index=True)
     catalog_type: str | None = Field(default=None, index=True)
@@ -90,6 +101,11 @@ class RobotSolution(SQLModel, table=True):
     industry: str | None = Field(default=None, index=True)
     price_rub: float | None = None
     max_payload_kg: float | None = None
+    width_m: float | None = None
+    length_m: float | None = None
+    turning_radius_m: float | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    source_row_number: int | None = None
     data_completeness: float = 0
     source_status: str = "source_present"
     source_name: str
@@ -116,7 +132,7 @@ class DeploymentCase(SQLModel, table=True):
 class MatchingRun(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)
     project_id: str = Field(foreign_key="project.id", index=True)
-    model_version: str = "2026.09.1"
+    model_version: str = "2026.09.2"
     input_snapshot: dict[str, Any] = Field(sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=now_utc)
 
@@ -183,6 +199,7 @@ class PlanElement(SQLModel, table=True):
     rotation_deg: float = 0
     properties: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
+
 class PlanAsset(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)
     project_id: str = Field(foreign_key="project.id", index=True)
@@ -222,12 +239,11 @@ class PlanRevision(SQLModel, table=True):
     created_at: datetime = Field(default_factory=now_utc)
 
 
-
 class SimulationRun(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)
     project_id: str = Field(foreign_key="project.id", index=True)
     plan_revision: int
-    model_version: str = "2026.09.1"
+    model_version: str = "2026.09.2"
     input_snapshot: dict[str, Any] = Field(sa_column=Column(JSON))
     result_snapshot: dict[str, Any] = Field(sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=now_utc)

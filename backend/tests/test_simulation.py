@@ -1,4 +1,11 @@
-from app.simulation import Point, Rect, SimulationInputs, build_route, calculate_simulation
+from app.simulation import (
+    Point,
+    Rect,
+    SimulationInputs,
+    build_astar_route,
+    build_route,
+    calculate_simulation,
+)
 
 
 def test_simulation_is_reproducible_and_uses_explicit_units():
@@ -58,7 +65,7 @@ def test_plan_api_validates_saves_and_runs(client, auth):
     second = client.post(simulation_url, headers=auth, json={})
     assert first.status_code == 200
     assert second.status_code == 200
-    assert first.json()["model_version"] == "2026.09.1"
+    assert first.json()["model_version"] == "2026.09.2"
     assert first.json()["plan_revision"] == 2
     for key in (
         "recommended_robots",
@@ -75,3 +82,80 @@ def test_plan_api_validates_saves_and_runs(client, auth):
     assert economics.json()["model_version"] == "2026.09.2"
     assert economics.json()["fleet_basis"] == "latest_simulation"
     assert economics.json()["required_robots"] >= first.json()["recommended_robots"]
+
+
+def test_astar_route_is_deterministic_and_avoids_inflated_obstacles():
+    start = Point(1, 1)
+    finish = Point(9, 1)
+    obstacles = [Rect(x=4, y=0, width=2, height=6)]
+
+    first, first_warnings = build_astar_route(
+        start,
+        finish,
+        obstacles,
+        width_m=10,
+        height_m=10,
+        clearance_m=0.5,
+        cell_size_m=0.5,
+    )
+    second, second_warnings = build_astar_route(
+        start,
+        finish,
+        obstacles,
+        width_m=10,
+        height_m=10,
+        clearance_m=0.5,
+        cell_size_m=0.5,
+    )
+
+    assert first == second
+    assert first_warnings == second_warnings
+    assert first[0] == start
+    assert first[-1] == finish
+    assert max(point.y for point in first) > 6.5
+
+
+def test_astar_does_not_turn_missing_route_into_a_pass():
+    route, warnings = build_astar_route(
+        Point(1, 1),
+        Point(9, 1),
+        [Rect(x=4, y=0, width=2, height=10)],
+        width_m=10,
+        height_m=10,
+        clearance_m=0.5,
+        cell_size_m=0.5,
+    )
+
+    assert route == []
+    assert warnings
+    assert "не найден" in warnings[-1]
+
+
+def test_confirmed_plan_rejects_blocked_route(client, auth):
+    project = client.post("/api/v1/projects/demo", headers=auth, json={}).json()
+    plan_url = f"/api/v1/projects/{project['id']}/plan"
+    plan = client.get(plan_url, headers=auth).json()
+    plan.pop("revision")
+    plan.pop("source_status")
+    plan["review_status"] = "confirmed"
+    plan["elements"].append(
+        {
+            "id": "wall-blocking",
+            "kind": "wall",
+            "label": "Непроходимая стена",
+            "x_m": 28,
+            "y_m": 0,
+            "width_m": 4,
+            "height_m": plan["height_m"],
+            "rotation_deg": 0,
+            "confidence": 1,
+            "source": "manual",
+            "review_status": "confirmed",
+            "source_region": None,
+        }
+    )
+
+    response = client.put(plan_url, headers=auth, json=plan)
+
+    assert response.status_code == 422
+    assert "маршрут" in response.json()["detail"].lower()

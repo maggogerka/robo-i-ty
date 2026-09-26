@@ -23,7 +23,7 @@ from ..plan_assets import (
 from ..recognition import RecognitionUnavailable, get_provider, provider_statuses
 from ..security import InMemoryRateLimiter, get_current_user
 
-router = APIRouter(prefix="/projects", tags=["????? ????????"])
+router = APIRouter(prefix="/projects", tags=["Планы объектов"])
 upload_limiter = InMemoryRateLimiter(limit=12, window_seconds=60)
 recognition_limiter = InMemoryRateLimiter(limit=12, window_seconds=60)
 
@@ -31,14 +31,14 @@ recognition_limiter = InMemoryRateLimiter(limit=12, window_seconds=60)
 def _project(project_id: str, user: User, session: Session) -> Project:
     project = session.get(Project, project_id)
     if project is None or (project.owner_id != user.id and user.role != "admin"):
-        raise HTTPException(status_code=404, detail="?????? ?? ??????")
+        raise HTTPException(status_code=404, detail="Проект не найден")
     return project
 
 
 def _asset(asset_id: str, project_id: str, session: Session) -> PlanAsset:
     asset = session.get(PlanAsset, asset_id)
     if asset is None or asset.project_id != project_id:
-        raise HTTPException(status_code=404, detail="???? ????? ?? ??????")
+        raise HTTPException(status_code=404, detail="Файл плана не найден")
     return asset
 
 
@@ -46,7 +46,7 @@ def _storage_path(asset: PlanAsset, settings: Settings) -> Path:
     root = settings.plan_storage_dir.resolve()
     target = (root / asset.storage_path).resolve()
     if root not in target.parents:
-        raise HTTPException(status_code=500, detail="???????????? ???? ?????")
+        raise HTTPException(status_code=500, detail="Некорректный путь файла")
     return target
 
 
@@ -92,13 +92,15 @@ def upload_asset(
     root = settings.plan_storage_dir.resolve()
     project_dir = (root / project_id).resolve()
     if root not in project_dir.parents:
-        raise HTTPException(status_code=500, detail="???????????? ??????? ???????")
+        raise HTTPException(status_code=500, detail="Некорректный каталог хранения")
     project_dir.mkdir(parents=True, exist_ok=True)
     asset_id = str(uuid4())
     temp_path = project_dir / f"{asset_id}.part"
     digest = hashlib.sha256()
     byte_size = 0
     header = bytearray()
+    final_path: Path | None = None
+    committed = False
     try:
         with temp_path.open("xb") as target:
             while chunk := file.file.read(1024 * 1024):
@@ -106,14 +108,14 @@ def upload_asset(
                 if byte_size > settings.max_plan_asset_bytes:
                     raise HTTPException(
                         status_code=413,
-                        detail=f"???? ????????? ????? {settings.max_plan_asset_bytes} ????",
+                        detail=f"Файл превышает лимит {settings.max_plan_asset_bytes} байт",
                     )
                 if len(header) < 4096:
                     header.extend(chunk[: 4096 - len(header)])
                 digest.update(chunk)
                 target.write(chunk)
         if byte_size == 0:
-            raise HTTPException(status_code=422, detail="?????? ????")
+            raise HTTPException(status_code=422, detail="Пустой файл")
         try:
             media_type, suffix = validate_declared_type(
                 detect_media_type(bytes(header)),
@@ -161,9 +163,13 @@ def upload_asset(
             )
         )
         session.commit()
+        committed = True
         session.refresh(asset)
     except Exception:
+        session.rollback()
         temp_path.unlink(missing_ok=True)
+        if final_path is not None and not committed:
+            final_path.unlink(missing_ok=True)
         raise
     return _asset_payload(asset)
 
@@ -180,7 +186,7 @@ def asset_content(
     asset = _asset(asset_id, project_id, session)
     path = _storage_path(asset, settings)
     if not path.is_file():
-        raise HTTPException(status_code=404, detail="???? ????? ??????????? ? ?????????")
+        raise HTTPException(status_code=404, detail="Файл плана отсутствует в хранилище")
     disposition = "inline" if asset.media_type.startswith("image/") else "attachment"
     return FileResponse(
         path,
@@ -221,7 +227,7 @@ def recognize_asset(
     asset = _asset(asset_id, project_id, session)
     source_path = _storage_path(asset, settings)
     if not source_path.is_file():
-        raise HTTPException(status_code=404, detail="???? ????? ??????????? ? ?????????")
+        raise HTTPException(status_code=404, detail="Файл плана отсутствует в хранилище")
     try:
         selected = get_provider(provider, settings)
         result = selected.recognize(asset, source_path)

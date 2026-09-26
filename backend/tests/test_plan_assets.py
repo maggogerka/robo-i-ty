@@ -44,7 +44,7 @@ def test_asset_signatures_and_active_svg_are_rejected():
     except AssetValidationError:
         pass
     else:
-        raise AssertionError("???????? SVG ?????? ???? ????????")
+        raise AssertionError("Активный SVG должен быть отклонён")
 
 
 def test_upload_recognition_history_and_project_isolation(client, auth, tmp_path):

@@ -9,12 +9,12 @@ import { money, statusLabel } from "../lib/format";
 import type { MatchingResult } from "../types";
 
 const factorLabel: Record<string, string> = {
-  technical: "Техническое соответствие",
-  performance: "Производительность",
-  economics: "Экономика",
-  infrastructure: "Инфраструктура",
-  maturity: "Зрелость и кейсы",
-  data_quality: "Качество данных",
+  functional: "Функциональное соответствие · 25%",
+  plan_feasibility: "Проходимость по плану · 25%",
+  performance: "Производительность · 20%",
+  economics: "Экономика · 15%",
+  maturity: "Зрелость и кейсы · 10%",
+  data_quality: "Качество данных · 5%",
 };
 
 export function MatchingPage() {
