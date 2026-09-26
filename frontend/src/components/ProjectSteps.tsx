@@ -2,10 +2,11 @@ import { NavLink } from "react-router-dom";
 
 const steps = [
   ["input", "01", "Параметры"],
-  ["matching", "02", "Подбор"],
-  ["economics", "03", "Экономика"],
-  ["simulation", "04", "Симуляция"],
-  ["report", "05", "Отчёт"],
+  ["plan", "02", "План объекта"],
+  ["matching", "03", "Подбор"],
+  ["economics", "04", "Экономика"],
+  ["simulation", "05", "2D-симуляция"],
+  ["report", "06", "Отчёт"],
 ] as const;
 
 export function ProjectSteps({ projectId }: { projectId: string }) {

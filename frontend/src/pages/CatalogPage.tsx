@@ -21,12 +21,12 @@ export function CatalogPage() {
   const [search, setSearch] = useState("");
   const query = useQuery({
     queryKey: ["catalog", search],
-    queryFn: () => api<{ count: number; items: Solution[]; source: string }>(`/catalog?limit=60&search=${encodeURIComponent(search)}`),
+    queryFn: () => api<{ count: number; family_count: number; items: Solution[]; source: string }>(`/catalog?limit=60&search=${encodeURIComponent(search)}`),
   });
   const table = useReactTable({ data: query.data?.items ?? [], columns, getCoreRowModel: getCoreRowModel() });
   return (
     <section className="page page-wide catalog-page">
-      <div className="page-header"><div><p className="section-kicker">Подтверждено конкурсным источником</p><h1>Каталог решений</h1><p>187 уникальных продуктов отделены от 223 строк внедрений; неизвестные характеристики не заполняются догадками.</p></div><div className="catalog-stat"><Database /><b>{query.data?.count ?? 187}</b><span>найдено</span></div></div>
+      <div className="page-header"><div><p className="section-kicker">Подтверждено конкурсным источником</p><h1>Каталог решений</h1><p>187 семейств разделены на 190 конфигураций и 223 кейса; неизвестные характеристики остаются неизвестными.</p></div><div className="catalog-stat"><Database /><b>{query.data?.count ?? 190}</b><span>найдено</span></div></div>
       <div className="catalog-tools"><label><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Название или производитель" /></label><Badge tone="source">Источник: catalog_export_v4.csv</Badge></div>
       {query.isLoading && <Loading />}{query.error && <ErrorState message={query.error.message} />}
       {query.data && <div className="table-wrap"><table><thead>{table.getHeaderGroups().map((group) => <tr key={group.id}>{group.headers.map((header) => <th key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</th>)}</tr>)}</thead><tbody>{table.getRowModel().rows.map((row) => <tr key={row.id}>{row.getVisibleCells().map((cell) => <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>)}</tbody></table></div>}

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4; margin: 17mm 14mm 18mm; @bottom-right { content: "Страница " counter(page) " из " counter(pages); color: #71818a; font-size: 8pt; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #17394c; font: 9.5pt/1.45 "DejaVu Sans", sans-serif; }
+    h1 { margin: 8mm 0 2mm; color: #073b5c; font-size: 25pt; letter-spacing: -.7pt; }
+    h2 { margin: 9mm 0 3mm; padding-bottom: 2mm; color: #075e67; font-size: 15pt; border-bottom: .4mm solid #d5e5e8; }
+    h3 { margin: 4mm 0 2mm; font-size: 11pt; }
+    p { margin: 1.5mm 0; }
+    .brand { color: #087e78; font-size: 12pt; font-weight: 800; }
+    .subtitle { max-width: 150mm; color: #607581; font-size: 11pt; }
+    .meta { margin-top: 7mm; display: table; width: 100%; padding: 4mm; background: #edf6f6; border-left: 1.2mm solid #07978e; }
+    .meta div { display: table-cell; width: 33%; }
+    .meta span,.kpi span { display: block; color: #70828b; font-size: 7.5pt; text-transform: uppercase; }
+    .meta b { display: block; margin-top: 1mm; }
+    .kpis { display: table; width: 100%; border-spacing: 2mm; margin: 0 -2mm; }
+    .kpi { display: table-cell; width: 25%; padding: 4mm 3mm; border: .3mm solid #d9e5e8; border-radius: 2mm; }
+    .kpi b { display: block; margin-top: 1.2mm; color: #073b5c; font-size: 14pt; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th { padding: 2mm; color: #5c707c; background: #edf3f4; font-size: 7.3pt; text-align: left; text-transform: uppercase; }
+    td { padding: 2mm; border-bottom: .25mm solid #e3ebed; vertical-align: top; overflow-wrap: anywhere; }
+    tr { break-inside: avoid; }
+    .rank { color: #078d84; font-weight: 800; }
+    .score { color: #073b5c; font-size: 12pt; font-weight: 800; }
+    .badge { display: inline-block; padding: .7mm 1.6mm; border-radius: 2mm; color: #925615; background: #fff0da; font-size: 6.5pt; font-weight: 700; }
+    .ok { color: #18724f; background: #e4f5eb; }
+    .warning { margin: 3mm 0; padding: 3mm 4mm; color: #78552d; background: #fff7ea; border: .3mm solid #ead7b7; }
+    .note { margin-top: 7mm; padding: 4mm; color: #526a77; background: #f4f7f8; font-size: 8pt; }
+    .page-break { break-before: page; }
+    .source { color: #70828b; font-size: 7.5pt; }
+  </style>
+</head>
+<body>
+  <div class="brand">Робо&amp;Ты · инженерно-экономическая оценка</div>
+  <h1>{{ project.name }}</h1>
+  <p class="subtitle">Объяснимый подбор роботизированного решения, экономика сценариев и проверка пропускной способности.</p>
+  <div class="meta">
+    <div><span>Тип объекта</span><b>{{ project.object_type_code }}</b></div>
+    <div><span>Версия расчёта</span><b>{{ project.calculation_version }}</b></div>
+    <div><span>Сформировано</span><b>{{ generated_at }}</b></div>
+  </div>
+
+  <h2>1. Результат подбора</h2>
+  {% if candidates %}
+  <div class="kpis">
+    <div class="kpi"><span>Показано решений</span><b>{{ candidates|length }}</b></div>
+    <div class="kpi"><span>Лидер</span><b>{{ candidates[0].score|num }}</b></div>
+    <div class="kpi"><span>Модель</span><b>2026.09.1</b></div>
+    <div class="kpi"><span>Качество</span><b>объяснимо</b></div>
+  </div>
+  <table>
+    <thead><tr><th style="width:8%">Место</th><th style="width:37%">Решение</th><th style="width:21%">Производитель</th><th style="width:13%">Балл</th><th>Статус данных</th></tr></thead>
+    <tbody>
+      {% for item in candidates %}
+      <tr><td class="rank">#{{ item.rank }}</td><td><b>{{ item.name }}</b></td><td>{{ item.manufacturer }}</td><td class="score">{{ item.score|num }}</td><td>{% if item.requires_verification %}<span class="badge">нужна проверка</span>{% else %}<span class="badge ok">достаточно</span>{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="warning">По текущим данным применимых решений не найдено.</div>{% endif %}
+
+  <h2>2. Экономика сценариев</h2>
+  {% if economics %}
+  <table>
+    <thead><tr><th>Сценарий</th><th>CAPEX, ₽</th><th>OPEX/год, ₽</th><th>Эффект/год, ₽</th><th>Окупаемость, лет</th><th>TCO, ₽</th></tr></thead>
+    <tbody>
+      {% for key in ["baseline", "purchase", "raas"] %}{% set item = economics.scenarios[key] %}
+      <tr><td><b>{{ item.name }}</b></td><td>{{ item.capex_rub|num }}</td><td>{{ item.annual_opex_rub|num }}</td><td>{{ item.annual_effect_rub|num }}</td><td>{{ item.payback_years|num }}</td><td>{{ item.tco_rub|num }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="source">Цена решения: {{ economics.solution.price_rub|num }} ₽/шт. · горизонт: {{ economics.horizon_years }} лет · модель {{ economics.model_version }} · база парка: {{ economics.fleet_basis }} · допущения имеют статус assumed.</p>
+  {% else %}<div class="warning">Экономика недоступна: у применимого решения нет подтверждённой цены.</div>{% endif %}
+
+  <h2>3. 2D-симуляция</h2>
+  {% if simulation %}
+  <div class="kpis">
+    <div class="kpi"><span>Маршрут</span><b>{{ simulation.route_distance_m|num }} м</b></div>
+    <div class="kpi"><span>Цикл</span><b>{{ simulation.cycle_time_seconds|num }} с</b></div>
+    <div class="kpi"><span>Поток</span><b>{{ simulation.throughput_tasks_hour|num }}/ч</b></div>
+    <div class="kpi"><span>Парк</span><b>{{ simulation.robot_count }} шт.</b></div>
+  </div>
+  {% for warning in simulation.warnings %}<div class="warning">{{ warning }}</div>{% endfor %}
+  {% else %}<div class="warning">Симуляция ещё не запускалась. Раздел не интерпретируется как пройденная проверка.</div>{% endif %}
+
+  <h2 class="page-break">4. Входные параметры и происхождение</h2>
+  <table>
+    <thead><tr><th style="width:35%">Параметр</th><th style="width:17%">Значение</th><th style="width:13%">Единица</th><th style="width:15%">Статус</th><th>Источник</th></tr></thead>
+    <tbody>
+      {% for item in parameters %}
+      <tr><td>{{ item.name }}</td><td>{{ item.value|value }}</td><td>{{ item.unit or "—" }}</td><td><span class="badge{% if item.source_status != 'assumed' %} ok{% endif %}">{{ item.source_status }}</span></td><td>{{ item.source_name or "Пользователь" }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>5. Методика и ограничения</h2>
+  <p>Подбор сначала применяет жёсткие ограничения, затем рассчитывает взвешенный рейтинг. Неизвестная характеристика не считается пройденным ограничением.</p>
+  <p>Экономика сравнивает текущую работу, покупку и RaaS. Окупаемость не выводится при неположительном годовом эффекте.</p>
+  <p>2D-модель использует ортогональный маршрут и детерминированную оценку цикла. Она предназначена для предварительной проверки и не заменяет имитационное моделирование движения с диспетчеризацией и инженерное обследование.</p>
+  <div class="note"><b>Ограничение ответственности.</b> Отчёт является предварительной оценкой. Коммерческое решение требует подтверждения ТТХ производителем, обследования объекта, проверки безопасности, интеграций и коммерческих предложений.</div>
+</body>
+</html>

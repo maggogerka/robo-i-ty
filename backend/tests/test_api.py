@@ -17,7 +17,8 @@ def test_health_and_openapi(client):
 def test_catalog_was_imported(client):
     response = client.get("/api/v1/catalog?limit=1")
     assert response.status_code == 200
-    assert response.json()["count"] == 187
+    assert response.json()["count"] == 190
+    assert response.json()["family_count"] == 187
     assert response.json()["items"][0]["source_status"] == "source_present"
 
 

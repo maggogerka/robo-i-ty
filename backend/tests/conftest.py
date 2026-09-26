@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 os.environ["DATABASE_URL"] = "sqlite://"
-os.environ["SECRET_KEY"] = "test-secret-that-is-long-enough"
+os.environ["SECRET_KEY"] = "test-secret-that-is-long-enough-for-hs256"
 
 from app.main import app  # noqa: E402
 

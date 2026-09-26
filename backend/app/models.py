@@ -75,8 +75,19 @@ class ProjectParameterValue(SQLModel, table=True):
     changed_at: datetime | None = None
 
 
+class RobotFamily(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    name: str = Field(index=True)
+    manufacturer: str = Field(index=True)
+    source_status: str = "source_present"
+    source_name: str
+
+
 class RobotSolution(SQLModel, table=True):
     id: str = Field(primary_key=True)
+    family_id: str | None = Field(default=None, foreign_key="robotfamily.id", index=True)
+    source_product_id: str | None = Field(default=None, index=True)
+    configuration_key: str | None = Field(default=None, index=True)
     name: str = Field(index=True)
     manufacturer: str = Field(index=True)
     catalog_type: str | None = Field(default=None, index=True)
@@ -90,6 +101,11 @@ class RobotSolution(SQLModel, table=True):
     industry: str | None = Field(default=None, index=True)
     price_rub: float | None = None
     max_payload_kg: float | None = None
+    width_m: float | None = None
+    length_m: float | None = None
+    turning_radius_m: float | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    source_row_number: int | None = None
     data_completeness: float = 0
     source_status: str = "source_present"
     source_name: str
@@ -116,7 +132,7 @@ class DeploymentCase(SQLModel, table=True):
 class MatchingRun(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)
     project_id: str = Field(foreign_key="project.id", index=True)
-    model_version: str = "2026.09.1"
+    model_version: str = "2026.09.2"
     input_snapshot: dict[str, Any] = Field(sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=now_utc)
 
@@ -135,7 +151,7 @@ class EconomicScenario(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)
     project_id: str = Field(foreign_key="project.id", index=True)
     scenario_type: str
-    model_version: str = "2026.09.1"
+    model_version: str = "2026.09.2"
     created_at: datetime = Field(default_factory=now_utc)
 
 
@@ -155,6 +171,91 @@ class EconomicResult(SQLModel, table=True):
     id: str = Field(default_factory=new_id, primary_key=True)
     scenario_id: str = Field(foreign_key="economicscenario.id", index=True)
     metrics: dict[str, Any] = Field(sa_column=Column(JSON))
+
+
+class Plan(SQLModel, table=True):
+    project_id: str = Field(foreign_key="project.id", primary_key=True)
+    name: str = "Основной план"
+    width_m: float
+    height_m: float
+    revision: int = 1
+    source_status: str = "assumed"
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class PlanElement(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("plan_project_id", "element_key"),)
+
+    id: str = Field(default_factory=new_id, primary_key=True)
+    plan_project_id: str = Field(foreign_key="plan.project_id", index=True)
+    element_key: str = Field(max_length=64)
+    kind: str = Field(index=True, max_length=32)
+    label: str = Field(max_length=120)
+    x_m: float
+    y_m: float
+    width_m: float
+    height_m: float
+    rotation_deg: float = 0
+    properties: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class PlanAsset(SQLModel, table=True):
+    id: str = Field(default_factory=new_id, primary_key=True)
+    project_id: str = Field(foreign_key="project.id", index=True)
+    original_name: str = Field(max_length=255)
+    media_type: str = Field(max_length=80)
+    byte_size: int
+    sha256: str = Field(index=True, max_length=64)
+    storage_path: str = Field(max_length=500)
+    uploaded_by: str = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class ObjectPlan(SQLModel, table=True):
+    project_id: str = Field(foreign_key="project.id", primary_key=True)
+    asset_id: str | None = Field(default=None, foreign_key="planasset.id", index=True)
+    current_revision_id: str | None = Field(default=None, index=True)
+    scale_m_per_px: float | None = None
+    scale_status: str = Field(default="unknown", max_length=24)
+    review_status: str = Field(default="draft", max_length=24)
+    provider_key: str = Field(default="manual", max_length=64)
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
+class PlanRevision(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("project_id", "revision_number"),)
+
+    id: str = Field(default_factory=new_id, primary_key=True)
+    project_id: str = Field(foreign_key="project.id", index=True)
+    asset_id: str | None = Field(default=None, foreign_key="planasset.id")
+    revision_number: int
+    plan_data: dict[str, Any] = Field(sa_column=Column(JSON))
+    source: str = Field(max_length=24)
+    review_status: str = Field(default="draft", max_length=24)
+    provider_key: str = Field(default="manual", max_length=64)
+    created_by: str = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class SimulationRun(SQLModel, table=True):
+    id: str = Field(default_factory=new_id, primary_key=True)
+    project_id: str = Field(foreign_key="project.id", index=True)
+    plan_revision: int
+    model_version: str = "2026.09.2"
+    input_snapshot: dict[str, Any] = Field(sa_column=Column(JSON))
+    result_snapshot: dict[str, Any] = Field(sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=now_utc)
+
+
+class SimulationMetric(SQLModel, table=True):
+    id: str = Field(default_factory=new_id, primary_key=True)
+    simulation_run_id: str = Field(foreign_key="simulationrun.id", index=True)
+    key: str = Field(max_length=80)
+    value: float
+    unit: str = Field(max_length=32)
+    status: str = "assumed"
 
 
 class AuditEvent(SQLModel, table=True):

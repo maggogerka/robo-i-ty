@@ -34,6 +34,7 @@ def get_catalog(
     all_items = list(session.exec(query.order_by(RobotSolution.name)))
     return {
         "count": len(all_items),
+        "family_count": len({item.family_id for item in all_items if item.family_id}),
         "items": all_items[offset : offset + limit],
         "source": "catalog_export_v4.csv",
         "source_status": "source_present",

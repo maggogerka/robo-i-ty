@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, replace
 from math import ceil
 
+ECONOMICS_MODEL_VERSION = "2026.09.2"
+
 
 @dataclass(frozen=True)
 class EconomicInputs:
@@ -168,6 +170,7 @@ def calculate_economics(inputs: EconomicInputs) -> dict:
         {"setup": raas_capex, **raas_opex_lines},
     )
     return {
+        "model_version": ECONOMICS_MODEL_VERSION,
         "required_robots": robots,
         "horizon_years": inputs.horizon_years,
         "scenarios": {"baseline": baseline, "purchase": purchase, "raas": raas},

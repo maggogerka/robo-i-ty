@@ -10,6 +10,7 @@ from .models import (
     DeploymentCase,
     ObjectParameterDefinition,
     ObjectType,
+    RobotFamily,
     RobotSolution,
     SourceEvidence,
     User,
@@ -83,6 +84,15 @@ def seed_database(session: Session) -> None:
                     setattr(definition, key, value)
 
     catalog = _read_json(catalog_path)
+    for item in catalog.get("families", []):
+        family = session.get(RobotFamily, item["id"])
+        if family is None:
+            session.add(RobotFamily(**item))
+        else:
+            for key, value in item.items():
+                if key != "id":
+                    setattr(family, key, value)
+    session.flush()
     for item in catalog["products"]:
         solution = session.get(RobotSolution, item["id"])
         if solution is None:
@@ -92,6 +102,11 @@ def seed_database(session: Session) -> None:
                 if key != "id":
                     setattr(solution, key, value)
     for item in catalog["cases"]:
-        if session.get(DeploymentCase, item["id"]) is None:
+        deployment_case = session.get(DeploymentCase, item["id"])
+        if deployment_case is None:
             session.add(DeploymentCase(**item))
+        else:
+            deployment_case.solution_id = item["solution_id"]
+            deployment_case.summary = item["summary"]
+            deployment_case.source_name = item["source_name"]
     session.commit()
